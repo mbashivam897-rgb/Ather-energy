@@ -998,3 +998,92 @@ for nm in wb.sheetnames:
     ws.sheet_view.zoomScale=90
 wb[COV].sheet_view.zoomScale=110
 print("Polish done")
+
+
+# =====================================================================================
+#  RELATIVE VALUATION (Comparable Company Analysis)
+# =====================================================================================
+RV="Relative Valuation"
+ws = wb.create_sheet(RV)
+colwidths(ws, {"A":2.5,"B":24,"C":13,"D":12,"E":13,"F":12,"G":12,"H":11,"I":11,"J":12,"K":10,"L":11})
+title(ws,"Ather Energy Ltd — Relative Valuation (Comparable Companies)","B2")
+put(ws,"B3","Peer market data indicative, as of ~Jun-2026 (public sources: NSE/BSE, stockanalysis, dhan, companies-marketcap). Figures in INR crore unless stated. 1 cr = 10 INR m.",
+    kind="label",italic=True,color=GREY,wrap=True)
+ws.row_dimensions[3].height=28
+hdr=["Company","Mkt cap (cr)","Net debt (cr)","EV (cr)","Revenue (cr)","EBITDA (cr)","PAT (cr)","EV/Sales","EV/EBITDA","P/E","EBITDA %"]
+hcols=["B","C","D","E","F","G","H","I","J","K","L"]
+for cc,h in zip(hcols,hdr):
+    put(ws,f"{cc}5",h,kind="label",bold=True,fill=LGREY,align="center",wrap=True)
+ws.row_dimensions[5].height=28
+# peers: name, mktcap, netdebt, revenue, ebitda, pat   (INR crore, FY25/TTM indicative)
+peers=[
+ ("TVS Motor",      169592,  2000, 36000, 4320, 2200),
+ ("Bajaj Auto",     265000,-15000, 49000, 9800, 7300),
+ ("Hero MotoCorp",   90000, -8000, 40000, 5600, 4500),
+ ("Eicher Motors",  208424,-16000, 18000, 4500, 4700),
+ ("Ola Electric",    19000, -2000,  4514,-1500,-2000),
+ ("Ather Energy (mkt)",37920,  150,  2255, -581, -812),
+]
+r=6
+for nm,mc,nd,rev,eb,pat in peers:
+    put(ws,f"B{r}",nm,kind="label",bold=(nm.startswith("Ather")))
+    put(ws,f"C{r}",mc,kind="input",nf=NUM0)
+    put(ws,f"D{r}",nd,kind="input",nf=NUM0)
+    put(ws,f"E{r}",f"=C{r}+D{r}",kind="calc",nf=NUM0)
+    put(ws,f"F{r}",rev,kind="input",nf=NUM0)
+    put(ws,f"G{r}",eb,kind="input",nf=NUM0)
+    put(ws,f"H{r}",pat,kind="input",nf=NUM0)
+    put(ws,f"I{r}",f"=E{r}/F{r}",kind="calc",nf=MULT)
+    put(ws,f"J{r}",f'=IF(G{r}>0,E{r}/G{r},"NM")',kind="calc",nf=MULT)
+    put(ws,f"K{r}",f'=IF(H{r}>0,C{r}/H{r},"NM")',kind="calc",nf=MULT)
+    put(ws,f"L{r}",f"=G{r}/F{r}",kind="calc",nf=PCT)
+    r+=1
+# medians
+put(ws,"B13","Legacy 2W OEM median (TVS/Bajaj/Hero/Eicher)",kind="label",bold=True)
+put(ws,"I13","=MEDIAN(I6:I9)",kind="calc",nf=MULT,bold=True)
+put(ws,"J13","=MEDIAN(J6:J9)",kind="calc",nf=MULT,bold=True)
+put(ws,"K13","=MEDIAN(K6:K9)",kind="calc",nf=MULT,bold=True)
+put(ws,"B14","EV pure-play reference (Ola Electric)",kind="label",bold=True)
+put(ws,"I14","=I10",kind="calc",nf=MULT,bold=True)
+
+# implied valuation of Ather
+section(ws,16,"Implied valuation of Ather Energy (EV/Sales — primary, as company is pre-profit)")
+put(ws,"B17","Ather FY2027E revenue (INR cr)",kind="label")
+put(ws,"C17",f"={ref(PLs,'I5')}/10",kind="link",nf=NUM0)
+put(ws,"B18","Ather net debt — FY2025 (INR cr)",kind="label")
+put(ws,"C18",f"=({ref(BSs,'G13')}+{ref(BSs,'G21')}+{ref(BSs,'G14')}+{ref(BSs,'G22')}-{ref(BSs,'G43')})/10",kind="link",nf=NUM0)
+put(ws,"B19","Shares outstanding (m)",kind="label"); put(ws,"C19",383,kind="input",nf=NUM0)
+put(ws,"B21","Scenario",kind="label",bold=True,fill=LGREY)
+put(ws,"C21","EV/Sales (x)",kind="label",bold=True,fill=LGREY,align="center")
+put(ws,"D21","Implied EV (cr)",kind="label",bold=True,fill=LGREY,align="center")
+put(ws,"E21","Implied equity (cr)",kind="label",bold=True,fill=LGREY,align="center")
+put(ws,"F21","Implied price (INR)",kind="label",bold=True,fill=LGREY,align="center")
+mults=[("Conservative (3.0x)",3.0),("Base (4.5x)",4.5),("Bull (6.0x)",6.0)]
+rr=22
+for lbl,m in mults:
+    put(ws,f"B{rr}",lbl,kind="label")
+    put(ws,f"C{rr}",m,kind="input",nf=MULT)
+    put(ws,f"D{rr}",f"=C{rr}*$C$17",kind="calc",nf=NUM0)
+    put(ws,f"E{rr}",f"=D{rr}-$C$18",kind="calc",nf=NUM0)
+    put(ws,f"F{rr}",f"=E{rr}*10/$C$19",kind="calc",nf=NUM0,bold=True)
+    rr+=1
+
+# football field / summary
+section(ws,27,"Valuation summary (football field)")
+put(ws,"B28","DCF — Base case (INR/share)",kind="label"); put(ws,"C28",f"={ref(DCFs,'C27')}",kind="link",nf=NUM0,bold=True)
+put(ws,"B29","Relative — conservative to bull (INR/share)",kind="label")
+put(ws,"C29","=F22",kind="calc",nf=NUM0,bold=True); put(ws,"D29",'="to "&TEXT(F24,"#,##0")',kind="calc")
+put(ws,"B30","Current market price (INR/share)",kind="label"); put(ws,"C30",990,kind="input",nf=NUM0,bold=True)
+put(ws,"B31","Implied market EV/Sales on FY25 revenue (x)",kind="label"); put(ws,"C31","=I11",kind="link",nf=MULT,bold=True)
+put(ws,"B33","Read-through: Ather trades at a steep premium to legacy 2W OEMs and to Ola Electric on EV/Sales, so the "
+              "market is already pricing in strong volume growth and a sharp margin ramp. On a conservative DCF and on "
+              "peer-based EV/Sales, the stock screens expensive unless one underwrites the bull-case volumes and "
+              "terminal margins. Use this alongside the DCF and the Scenarios switch. Indicative, not investment advice.",
+    kind="label",italic=True,color=GREY,wrap=True)
+ws.row_dimensions[33].height=58
+# polish this sheet
+ws.freeze_panes="C6"; ws.sheet_view.showGridLines=False; ws.sheet_view.zoomScale=90
+ws.sheet_properties.tabColor="7030A0"
+# position right after DCF
+wb.move_sheet(RV, -(len(wb.sheetnames)-1-wb.sheetnames.index(DCFs)-1))
+print("Relative Valuation done; order:", wb.sheetnames)
