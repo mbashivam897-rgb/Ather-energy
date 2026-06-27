@@ -781,45 +781,19 @@ print("Error Checks done")
 
 
 # =====================================================================================
-#  DCF VALUATION
+#  DCF VALUATION  (3-stage: explicit FY2026-33, fade FY2034-40, terminal)
 # =====================================================================================
 ws = wb.create_sheet(DCFs)
-DCOLS=["C","D","E","F","G","H","I","J"]   # FY2026..FY2033
-colwidths(ws, {"A":2.5,"B":40,**{c:11 for c in DCOLS},"K":2,"L":26,"M":11,"N":18})
-title(ws,"Ather Energy Ltd — DCF Valuation (FCFF)","B2")
-# year header for DCF
-put(ws,"B4","Particulars",kind="label",bold=True,fill=LGREY)
-put(ws,"C4",2026,kind="label",bold=True,nf=YEAR_E,align="center",fill=LGREY)
-for i,cc in enumerate(DCOLS[1:],1):
-    put(ws,f"{cc}4",f"={DCOLS[i-1]}4+1",kind="label",bold=True,nf=YEAR_E,align="center",fill=LGREY)
-def dz(stmt): return dict(zip(DCOLS,FCOLS))[stmt]
+DCOLS=["C","D","E","F","G","H","I","J"]      # Stage 1: FY2026..FY2033
+S2=["C","D","E","F","G","H","I"]             # Stage 2 (fade): FY2034..FY2040
+colwidths(ws, {"A":2.5,"B":42,**{c:11 for c in DCOLS},"K":2,"L":26,"M":11,"N":18})
+title(ws,"Ather Energy Ltd — DCF Valuation (3-stage FCFF)","B2")
 pairs=list(zip(DCOLS,FCOLS))
-put(ws,"B6","EBIT",kind="label")
-for dc,sc in pairs: put(ws,f"{dc}6",f"={ref(PLs,sc+'14')}",kind="link",nf=MONEY)
-put(ws,"B7","Less: tax on EBIT",kind="label")
-for dc,sc in pairs: put(ws,f"{dc}7",f"=-{dc}6*{ref(ASm,sc+'47')}",kind="calc",nf=MONEY)
-put(ws,"B8","NOPAT",kind="label",bold=True)
-for dc,sc in pairs: put(ws,f"{dc}8",f"={dc}6+{dc}7",kind="calc",nf=MONEY,bold=True)
-put(ws,"B9","Add: Depreciation & amortisation",kind="label")
-for dc,sc in pairs: put(ws,f"{dc}9",f"=-{ref(PLs,sc+'13')}",kind="link",nf=MONEY)
-put(ws,"B10","Less: Capex (PPE + intangibles)",kind="label")
-for dc,sc in pairs: put(ws,f"{dc}10",f"=-({ref(WS,sc+'7')}+{ref(WS,sc+'21')})",kind="link",nf=MONEY)
-put(ws,"B11","Less: Increase in net working capital",kind="label")
-for dc,sc in pairs: put(ws,f"{dc}11",f"=-{ref(WCS,sc+'21')}",kind="link",nf=MONEY)
-put(ws,"B12","Free cash flow to firm (FCFF)",kind="label",bold=True)
-for dc,sc in pairs: put(ws,f"{dc}12",f"=SUM({dc}8:{dc}11)",kind="calc",nf=MONEY,bold=True)
-for cc in ["B"]+DCOLS: ws[f"{cc}12"].border=BORDER_TOPBOT
-put(ws,"B13","Discount period",kind="label")
-put(ws,"C13",1,kind="input",nf=NUM2)
-for i,cc in enumerate(DCOLS[1:],1): put(ws,f"{cc}13",f"={DCOLS[i-1]}13+1",kind="calc",nf=NUM2)
-put(ws,"B14","PV of FCFF",kind="label",bold=True)
-for dc,sc in pairs: put(ws,f"{dc}14",f"={dc}12/(1+$M$9)^{dc}13",kind="calc",nf=MONEY,bold=True)
 
-# WACC block
+# WACC block (CAPM)
 put(ws,"L2","WACC (CAPM)",kind="label",bold=True,size=14,color=NAVY)
 def wrow(r,lbl,val,nf,src="",kind="input"):
-    put(ws,f"L{r}",lbl,kind="label")
-    put(ws,f"M{r}",val,kind=kind,nf=nf)
+    put(ws,f"L{r}",lbl,kind="label"); put(ws,f"M{r}",val,kind=kind,nf=nf)
     if src: put(ws,f"N{r}",src,kind="label",size=9,color=GREY)
 wrow(4,"Risk-free rate (Rf)",0.068,PCT2,"10-yr G-Sec")
 wrow(5,"Equity market return (Rm)",0.12,PCT2,"Nifty long-run")
@@ -827,35 +801,91 @@ wrow(6,"Equity risk premium",f"=M5-M4",PCT2,"Rm - Rf","calc")
 wrow(7,"Beta (levered)",1.15,NUM2,"High-growth EV peer")
 wrow(8,"Cost of equity (Ke)",f"=M4+M7*M6",PCT2,"CAPM","calc")
 wrow(9,"WACC",f"=M8",PCT2,"Debt small -> ~Ke","calc")
-put(ws,"L9",("WACC"),kind="label",bold=True)
 
-# valuation summary
-put(ws,"B16","Valuation summary",kind="label",bold=True,size=12,color=NAVY)
-put(ws,"B17","Terminal growth rate (g)",kind="label"); put(ws,"C17",0.05,kind="input",nf=PCT2)
-put(ws,"B18","Terminal (steady-state) EBIT margin",kind="label"); put(ws,"C18",0.10,kind="input",nf=PCT2)
-put(ws,"B19","Normalised terminal NOPAT",kind="label")
-put(ws,"C19",f"={ref(PLs,'O5')}*C18*(1-{ref(ASm,'O47')})",kind="calc",nf=MONEY)
-put(ws,"B20","Terminal value (end FY2033)",kind="label")
-put(ws,"C20",f"=C19*(1+C17)/($M$9-C17)",kind="calc",nf=MONEY)
-put(ws,"B21","PV of terminal value",kind="label")
-put(ws,"C21",f"=C20/(1+$M$9)^J13",kind="calc",nf=MONEY)
-put(ws,"B22","Sum of PV of explicit FCFF",kind="label")
-put(ws,"C22","=SUM(C14:J14)",kind="calc",nf=MONEY)
-put(ws,"B23","Enterprise value (EV)",kind="label",bold=True)
-put(ws,"C23","=C21+C22",kind="calc",nf=MONEY,bold=True)
-put(ws,"B24","Less: net debt (FY2025)",kind="label")
-put(ws,"C24",f"=-({ref(BSs,'G13')}+{ref(BSs,'G21')}+{ref(BSs,'G14')}+{ref(BSs,'G22')}-{ref(BSs,'G43')})",kind="link",nf=MONEY)
-put(ws,"B25","Equity value",kind="label",bold=True)
-put(ws,"C25","=C23+C24",kind="calc",nf=MONEY,bold=True)
-put(ws,"B26","Shares outstanding (m)",kind="label"); put(ws,"C26",372,kind="input",nf=NUM2)
-put(ws,"B27","Value per share (INR)",kind="label",bold=True)
-put(ws,"C27","=C25/C26",kind="calc",nf=NUM2,bold=True)
-for cc in ["B","C"]: ws[f"{cc}27"].border=BORDER_TOPBOT
-put(ws,"B29","Note: Ather is in an investment / pre-profit phase, so explicit-period FCFF is negative and value is "
-              "dominated by the terminal value, which is built on a normalised steady-state EBIT margin (input) rather "
-              "than the still-maturing FY2033 margin. The DCF is highly sensitive to WACC, terminal growth and terminal "
-              "margin and should be read alongside relative valuation (EV/Sales) and the Base/Bull/Bear scenarios.",
-    kind="label",italic=True,color=GREY)
+# ---- Stage 1: explicit (linked to detailed model) ----
+section(ws,3,"Stage 1 — Explicit forecast (FY2026E–FY2033E), linked to the detailed model")
+put(ws,"B4","Particulars",kind="label",bold=True,fill=LGREY)
+put(ws,"C4",2026,kind="label",bold=True,nf=YEAR_E,align="center",fill=LGREY)
+for i,cc in enumerate(DCOLS[1:],1):
+    put(ws,f"{cc}4",f"={DCOLS[i-1]}4+1",kind="label",bold=True,nf=YEAR_E,align="center",fill=LGREY)
+put(ws,"B5","EBIT",kind="label")
+for dc,sc in pairs: put(ws,f"{dc}5",f"={ref(PLs,sc+'14')}",kind="link",nf=MONEY)
+put(ws,"B6","Less: tax on EBIT",kind="label")
+for dc,sc in pairs: put(ws,f"{dc}6",f"=-{dc}5*{ref(ASm,sc+'47')}",kind="calc",nf=MONEY)
+put(ws,"B7","NOPAT",kind="label",bold=True)
+for dc,sc in pairs: put(ws,f"{dc}7",f"={dc}5+{dc}6",kind="calc",nf=MONEY,bold=True)
+put(ws,"B8","Add: Depreciation & amortisation",kind="label")
+for dc,sc in pairs: put(ws,f"{dc}8",f"=-{ref(PLs,sc+'13')}",kind="link",nf=MONEY)
+put(ws,"B9","Less: Capex (PPE + intangibles)",kind="label")
+for dc,sc in pairs: put(ws,f"{dc}9",f"=-({ref(WS,sc+'7')}+{ref(WS,sc+'21')})",kind="link",nf=MONEY)
+put(ws,"B10","Less: Increase in net working capital",kind="label")
+for dc,sc in pairs: put(ws,f"{dc}10",f"=-{ref(WCS,sc+'21')}",kind="link",nf=MONEY)
+put(ws,"B11","FCFF",kind="label",bold=True)
+for dc,sc in pairs: put(ws,f"{dc}11",f"=SUM({dc}7:{dc}10)",kind="calc",nf=MONEY,bold=True)
+for cc in ["B"]+DCOLS: ws[f"{cc}11"].border=BORDER_TOPBOT
+put(ws,"B12","Discount period",kind="label")
+put(ws,"C12",1,kind="input",nf=NUM2)
+for i,cc in enumerate(DCOLS[1:],1): put(ws,f"{cc}12",f"={DCOLS[i-1]}12+1",kind="calc",nf=NUM2)
+put(ws,"B13","PV of FCFF",kind="label",bold=True)
+for dc,sc in pairs: put(ws,f"{dc}13",f"={dc}11/(1+$M$9)^{dc}12",kind="calc",nf=MONEY,bold=True)
+
+# ---- Stage 2: fade / convergence ----
+section(ws,15,"Stage 2 — Fade / convergence (FY2034E–FY2040E): growth & margins converge to steady state")
+put(ws,"B16","Particulars",kind="label",bold=True,fill=LGREY)
+put(ws,"C16",2034,kind="label",bold=True,nf=YEAR_E,align="center",fill=LGREY)
+for i,cc in enumerate(S2[1:],1):
+    put(ws,f"{cc}16",f"={S2[i-1]}16+1",kind="label",bold=True,nf=YEAR_E,align="center",fill=LGREY)
+fade_g   =[0.11,0.10,0.09,0.08,0.07,0.06,0.055]   # revenue growth fades
+fade_m   =[0.04,0.06,0.08,0.10,0.12,0.135,0.15]   # EBIT margin ramps to mature ~15%
+fade_tax =[0.05,0.08,0.12,0.16,0.20,0.2517,0.2517]# losses fade, then statutory
+fade_rir =[0.55,0.50,0.45,0.40,0.36,0.33,0.30]    # reinvestment rate (g / ROIC ~18-20%)
+put(ws,"B17","Revenue growth %",kind="label")
+for i,cc in enumerate(S2): put(ws,f"{cc}17",fade_g[i],kind="input",nf=PCT)
+put(ws,"B18","Revenue",kind="label")
+put(ws,"C18",f"={ref(PLs,'O5')}*(1+C17)",kind="link",nf=MONEY)
+for i,cc in enumerate(S2[1:],1): put(ws,f"{cc}18",f"={S2[i-1]}18*(1+{cc}17)",kind="calc",nf=MONEY)
+put(ws,"B19","EBIT margin %",kind="label")
+for i,cc in enumerate(S2): put(ws,f"{cc}19",fade_m[i],kind="input",nf=PCT)
+put(ws,"B20","EBIT",kind="label")
+for cc in S2: put(ws,f"{cc}20",f"={cc}18*{cc}19",kind="calc",nf=MONEY)
+put(ws,"B21","Effective tax rate %",kind="label")
+for i,cc in enumerate(S2): put(ws,f"{cc}21",fade_tax[i],kind="input",nf=PCT)
+put(ws,"B22","NOPAT",kind="label",bold=True)
+for cc in S2: put(ws,f"{cc}22",f"={cc}20*(1-{cc}21)",kind="calc",nf=MONEY,bold=True)
+put(ws,"B23","Reinvestment rate % (capex+NWC, net of D&A)",kind="label")
+for i,cc in enumerate(S2): put(ws,f"{cc}23",fade_rir[i],kind="input",nf=PCT)
+put(ws,"B24","FCFF",kind="label",bold=True)
+for cc in S2: put(ws,f"{cc}24",f"={cc}22*(1-{cc}23)",kind="calc",nf=MONEY,bold=True)
+for cc in ["B"]+S2: ws[f"{cc}24"].border=BORDER_TOPBOT
+put(ws,"B25","Discount period",kind="label")
+put(ws,"C25","=J12+1",kind="calc",nf=NUM2)
+for i,cc in enumerate(S2[1:],1): put(ws,f"{cc}25",f"={S2[i-1]}25+1",kind="calc",nf=NUM2)
+put(ws,"B26","PV of FCFF",kind="label",bold=True)
+for cc in S2: put(ws,f"{cc}26",f"={cc}24/(1+$M$9)^{cc}25",kind="calc",nf=MONEY,bold=True)
+
+# ---- Valuation summary ----
+section(ws,28,"Valuation summary")
+put(ws,"B29","Terminal growth rate (g)",kind="label"); put(ws,"C29",0.055,kind="input",nf=PCT2)
+put(ws,"B30","Sum of PV — Stage 1 (FY26-33)",kind="label"); put(ws,"C30","=SUM(C13:J13)",kind="calc",nf=MONEY)
+put(ws,"B31","Sum of PV — Stage 2 (FY34-40)",kind="label"); put(ws,"C31","=SUM(C26:I26)",kind="calc",nf=MONEY)
+put(ws,"B32","Terminal value (end FY2040)",kind="label"); put(ws,"C32",f"=I24*(1+C29)/($M$9-C29)",kind="calc",nf=MONEY)
+put(ws,"B33","PV of terminal value",kind="label"); put(ws,"C33",f"=C32/(1+$M$9)^I25",kind="calc",nf=MONEY)
+put(ws,"B34","Enterprise value (EV)",kind="label",bold=True); put(ws,"C34","=C30+C31+C33",kind="calc",nf=MONEY,bold=True)
+put(ws,"B35","Less: net debt (FY2025)",kind="label")
+put(ws,"C35",f"=-({ref(BSs,'G13')}+{ref(BSs,'G21')}+{ref(BSs,'G14')}+{ref(BSs,'G22')}-{ref(BSs,'G43')})",kind="link",nf=MONEY)
+put(ws,"B36","Equity value",kind="label",bold=True); put(ws,"C36","=C34+C35",kind="calc",nf=MONEY,bold=True)
+put(ws,"B37","Shares outstanding (m)",kind="label"); put(ws,"C37",372,kind="input",nf=NUM2)
+put(ws,"B38","Value per share (INR)",kind="label",bold=True); put(ws,"C38","=C36/C37",kind="calc",nf=NUM2,bold=True)
+for cc in ["B","C"]: ws[f"{cc}38"].border=BORDER_TOPBOT
+put(ws,"B40","% of value in terminal value",kind="label",italic=True,color=GREY)
+put(ws,"C40","=C33/C34",kind="calc",nf=PCT,italic=True)
+put(ws,"B42","Note: 3-stage FCFF. Stage 1 is the detailed model. Stage 2 lets growth fade and EBIT margin ramp to a "
+              "mature ~15% before the terminal value is struck on a steady-state business (taxed NOPAT, reinvestment for "
+              "growth). This is more rigorous than a single-period terminal off the still-maturing FY2033 — note the "
+              "terminal value now correctly reflects tax and reinvestment. Highly sensitive to WACC, g, terminal margin "
+              "and the fade path; read with the Relative Valuation and the Scenarios switch.",
+    kind="label",italic=True,color=GREY,wrap=True)
+ws.row_dimensions[42].height=58
 print("DCF done")
 
 
@@ -914,7 +944,7 @@ notes=[
  ("6. Integration & balancing",True),
  ("The three statements are fully linked with no circular references (interest income/expense use opening balances). The model is FULLY ARTICULATED: every balance-sheet line is forecast from a driver and cash is the genuine output of the cash-flow statement, so the balance sheet balances by accounting identity (no balancing plug). The Error Checks sheet confirms balance-sheet balancing, cash-flow reconciliation, beginning/ending balances and all roll-forwards return PASS for every year.",False),
  ("7. Valuation",True),
- ("An FCFF DCF discounts unlevered free cash flow at a CAPM-based WACC (Rf 6.8%, ERP 5.2%, beta 1.15 -> ~12.8%), with a 5% terminal growth rate. Because Ather is pre-profit, early FCFF is negative and most value sits in the terminal year; the DCF should be read alongside relative valuation (EV/Sales) and the Base/Bull/Bear scenarios.",False),
+ ("A 3-stage FCFF DCF: Stage 1 is the explicit detailed model (FY2026-FY2033); Stage 2 (FY2034-FY2040) lets revenue growth fade and the EBIT margin ramp to a mature ~15% with taxed NOPAT and reinvestment for growth; the terminal value is then struck on a genuine steady state. Discounted at a CAPM-based WACC (Rf 6.8%, ERP 5.2%, beta 1.15 -> ~12.8%) with ~5.5% terminal growth. This horizon (to FY2040) is appropriate because Ather only reaches EBITDA breakeven around FY2030 and PAT breakeven around FY2032-FY2033 — an 8-year cut-off would strike the terminal value on a still-immature, near-breakeven business. The DCF remains conservative versus the market price; read it alongside the Relative Valuation (EV/Sales) and the Base/Bull/Bear scenarios.",False),
  ("8. Key risks",True),
  ("Demand/competition: aggressive pricing by Ola, TVS, Bajaj could cap volumes/ASP and margins. Margin: slower battery-cost decline or input inflation. Execution: Factory-3 ramp and capex discipline. Funding: the model shows cash thinning by FY2033 — a further capital raise or faster profitability may be required. Policy: changes to PM E-DRIVE/GST incentives. Technology: rare-earth magnet supply and battery-chemistry shifts.",False),
  ("9. Limitations",True),
@@ -966,7 +996,7 @@ hl=[("FY2025 revenue (INR m)",f"={ref(PLs,'G5')}",MONEY),
     ("FY2025 EBITDA margin",f"={ref(PLs,'G12')}/{ref(PLs,'G5')}",PCT),
     ("FY2033E EBITDA margin",f"={ref(PLs,'O12')}/{ref(PLs,'O5')}",PCT),
     ("FY2033E PAT (INR m)",f"={ref(PLs,'O22')}",MONEY),
-    ("DCF value per share (INR)",f"={ref(DCFs,'C27')}",NUM2),
+    ("DCF value per share (INR)",f"={ref(DCFs,'C38')}",NUM2),
     ("Integrity checks",f"={ref(EC,'C22')}","General")]
 rr=7
 for lbl,f,nf in hl:
@@ -1070,7 +1100,7 @@ for lbl,m in mults:
 
 # football field / summary
 section(ws,27,"Valuation summary (football field)")
-put(ws,"B28","DCF — Base case (INR/share)",kind="label"); put(ws,"C28",f"={ref(DCFs,'C27')}",kind="link",nf=NUM0,bold=True)
+put(ws,"B28","DCF — Base case (INR/share)",kind="label"); put(ws,"C28",f"={ref(DCFs,'C38')}",kind="link",nf=NUM0,bold=True)
 put(ws,"B29","Relative — conservative to bull (INR/share)",kind="label")
 put(ws,"C29","=F22",kind="calc",nf=NUM0,bold=True); put(ws,"D29",'="to "&TEXT(F24,"#,##0")',kind="calc")
 put(ws,"B30","Current market price (INR/share)",kind="label"); put(ws,"C30",990,kind="input",nf=NUM0,bold=True)
